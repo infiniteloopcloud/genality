@@ -1,4 +1,4 @@
-package apikey
+package genality
 
 import (
 	"context"
@@ -13,30 +13,38 @@ import (
 )
 
 var driverName = "postgres"
-var tableName = "api_key_metrics"
-var dialect = goqu.Dialect("postgres")
+var tableName = "genality"
+var dialect = goqu.Dialect(driverName)
 
-func NewMetrics(connString string) (Metrics, error) {
-	conn, err := sql.Open(driverName, connString)
+type Opts struct {
+	ConnectionString string
+}
+
+func New(opts Opts) (Descriptor, error) {
+	return newGenality(opts)
+}
+
+func newGenality(opts Opts) (genality, error) {
+	conn, err := sql.Open(driverName, opts.ConnectionString)
 	if err != nil {
-		return Metrics{}, err
+		return genality{}, err
 	}
-	return Metrics{
+	return genality{
 		db: conn,
 	}, nil
 }
 
-type Metrics struct {
+type genality struct {
 	db *sql.DB
 }
 
-func (m Metrics) Add(ctx context.Context, apiKey string) error {
-	return m.add(ctx, apiKey, time.Now().UTC())
+func (m genality) Add(ctx context.Context, record string) error {
+	return m.add(ctx, record, time.Now().UTC())
 }
 
-func (m Metrics) add(ctx context.Context, apiKey string, t time.Time) error {
+func (m genality) add(ctx context.Context, record string, t time.Time) error {
 	query, params, err := dialect.Insert(tableName).Prepared(true).
-		Cols("api_key", "time").Vals([]interface{}{apiKey, t}).ToSQL()
+		Cols("record", "time").Vals([]interface{}{record, t}).ToSQL()
 	if err != nil {
 		return err
 	}
@@ -47,10 +55,10 @@ func (m Metrics) add(ctx context.Context, apiKey string, t time.Time) error {
 	return nil
 }
 
-func (m Metrics) GetCountFrom(ctx context.Context, apiKey string, start time.Time) (int, error) {
+func (m genality) GetCountFrom(ctx context.Context, record string, start time.Time) (int, error) {
 	query, params, err := dialect.Select(goqu.COUNT("*")).
 		From(tableName).Where(
-		exp.NewBooleanExpression(exp.EqOp, goqu.L("api_key"), apiKey),
+		exp.NewBooleanExpression(exp.EqOp, goqu.L("record"), record),
 		exp.NewBooleanExpression(exp.GteOp, goqu.L("time"), start),
 	).
 		Prepared(true).ToSQL()
@@ -72,10 +80,10 @@ type BucketResponse struct {
 	Count  uint      `json:"count"`
 }
 
-func (m Metrics) GetCountBuckets(ctx context.Context, apiKey string, start time.Time, bucketSize time.Duration) ([]BucketResponse, error) {
+func (m genality) GetCountBuckets(ctx context.Context, record string, start time.Time, bucketSize time.Duration) ([]BucketResponse, error) {
 	query, params, err := dialect.Select(goqu.L(getBucketSize(bucketSize)).As("bucket"), goqu.COUNT("*")).
 		From(tableName).Where(
-		exp.NewBooleanExpression(exp.EqOp, goqu.L("api_key"), apiKey),
+		exp.NewBooleanExpression(exp.EqOp, goqu.L("record"), record),
 		exp.NewBooleanExpression(exp.GteOp, goqu.L("time"), start),
 	).GroupBy("bucket").
 		Prepared(true).ToSQL()

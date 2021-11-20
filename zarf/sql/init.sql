@@ -1,3 +1,3 @@
-CREATE USER api_key WITH password 'api_key';
-CREATE DATABASE api_key;
-GRANT ALL ON DATABASE api_key TO api_key;
+CREATE USER genality WITH password 'genality';
+CREATE DATABASE genality;
+GRANT ALL ON DATABASE genality TO genality;
