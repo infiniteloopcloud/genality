@@ -12,7 +12,7 @@ var (
 	   record VARCHAR(255) NOT NULL,
 	   time timestamptz
 	);`
-	hypertable = `SELECT create_hypertable('genality','time',chunk_time_interval => INTERVAL '1 day');`
+	hypertable = `SELECT create_hypertable('genality','time',chunk_time_interval => INTERVAL '1 day', if_not_exists => true);`
 )
 
 func Up(ctx context.Context, db *sql.DB) error {
@@ -30,7 +30,7 @@ func Down(ctx context.Context, db *sql.DB) error {
 }
 
 func exec(ctx context.Context, db *sql.DB, query string) error {
-	res, err := db.ExecContext(ctx, extension)
+	res, err := db.ExecContext(ctx, query)
 	if err != nil {
 		return err
 	}
